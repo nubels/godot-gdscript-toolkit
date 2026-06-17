@@ -107,12 +107,7 @@ def reconstruct_blank_lines_in_range(
     reconstructed_lines = []
     for line_no, comment in zip(range(begin + 1, end), comments_in_range):
         if comment is not None:
-            prefix = (
-                context.indent_string
-                if not context.gdscript_code_lines[line_no].startswith("#")
-                else ""
-            )
-            reconstructed_lines.append(prefix + comment)
+            reconstructed_lines.append(comment)
         else:
             reconstructed_lines.append("")
     reconstructed_lines = _squeeze_lines(reconstructed_lines)

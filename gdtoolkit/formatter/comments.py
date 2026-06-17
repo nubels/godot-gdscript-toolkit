@@ -22,7 +22,7 @@ def gather_standalone_comments(
     gdscript_code: str, comment_parse_tree: Tree
 ) -> List[Optional[str]]:
     comments = _gather_comments_by_prefix_regex(
-        gdscript_code, comment_parse_tree, r"^\s*$"
+        gdscript_code, comment_parse_tree, r"^\s*$", keep_original_prefix=True
     )
     return _rstrip_comments(comments)
 
@@ -37,7 +37,10 @@ def gather_inline_comments(
 
 
 def _gather_comments_by_prefix_regex(
-    gdscript_code: str, comment_parse_tree: Tree, prefix_regex: str
+    gdscript_code: str,
+    comment_parse_tree: Tree,
+    prefix_regex: str,
+    keep_original_prefix: bool = False,
 ) -> List[Optional[str]]:
     """prefix means all line characters before comment"""
     line_to_comment_mapping = {
@@ -56,7 +59,11 @@ def _gather_comments_by_prefix_regex(
         if match is None:
             comments.append(None)
         else:
-            comments.append(line_to_comment_mapping[normalized_line_number].value)
+            comments.append(
+                line.rstrip()
+                if keep_original_prefix
+                else line_to_comment_mapping[normalized_line_number].value
+            )
     return comments
 
 

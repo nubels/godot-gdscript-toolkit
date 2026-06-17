@@ -75,21 +75,11 @@ def _format_classname_statement(statement: Tree, context: Context) -> Outcome:
 
 def _format_extends_statement(statement: Tree, context: Context) -> Outcome:
     last_processed_line_no = get_line(statement)
-    optional_attributes = (
-        ""
-        if len(statement.children) == 1
-        else ".{}".format(
-            ".".join([expression_to_str(child) for child in statement.children[1:]])
-        )
-    )
+    extendee = _extends_statement_to_str(statement)
     formatted_lines: FormattedLines = [
         (
             get_line(statement),
-            "{}extends {}{}".format(
-                context.indent_string,
-                expression_to_str(statement.children[0]),
-                optional_attributes,
-            ),
+            f"{context.indent_string}extends {extendee}",
         )
     ]
     return (formatted_lines, last_processed_line_no)
@@ -151,16 +141,38 @@ def _format_docstring_statement(statement: Tree, context: Context) -> Outcome:
 def _format_class_statement(statement: Tree, context: Context) -> Outcome:
     last_processed_line_no = get_line(statement)
     name = statement.children[0].value
+    has_inline_extends = (
+        len(statement.children) > 1
+        and isinstance(statement.children[1], Tree)
+        and statement.children[1].data == "extends_stmt"
+    )
+    keep_extends_inline = has_inline_extends and context.indent > 0
+    optional_extends = (
+        f" extends {_extends_statement_to_str(statement.children[1])}"
+        if keep_extends_inline
+        else ""
+    )
     formatted_lines: FormattedLines = [
-        (get_line(statement), f"{context.indent_string}class {name}:")
+        (get_line(statement), f"{context.indent_string}class {name}{optional_extends}:")
     ]
     class_lines, last_processed_line_no = format_block(
-        statement.children[1:],
+        statement.children[2:] if keep_extends_inline else statement.children[1:],
         format_class_statement,
         context.create_child_context(last_processed_line_no),
     )
     formatted_lines += class_lines
     return (formatted_lines, last_processed_line_no)
+
+
+def _extends_statement_to_str(statement: Tree) -> str:
+    optional_attributes = (
+        ""
+        if len(statement.children) == 1
+        else ".{}".format(
+            ".".join([expression_to_str(child) for child in statement.children[1:]])
+        )
+    )
+    return f"{expression_to_str(statement.children[0])}{optional_attributes}"
 
 
 def _format_func_statement(

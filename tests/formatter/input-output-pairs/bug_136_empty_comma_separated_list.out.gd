@@ -1,9 +1,9 @@
 var x = [
-# TODO: fix indent
+	# TODO: fix indent
 ]
 
 
 func foo():
 	var y = [
-	# TODO: fix indent
+		# TODO: fix indent
 	]

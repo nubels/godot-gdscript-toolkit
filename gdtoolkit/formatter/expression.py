@@ -242,6 +242,18 @@ def _format_kv_pair_to_multiple_lines(
     expression: Tree, expression_context: ExpressionContext, context: Context
 ) -> FormattedLines:
     suffix = ":" if expression.data in ["c_dict_element", "kv_pair_pattern"] else " ="
+    if _should_keep_scalar_eq_dict_pair_on_single_line(expression, context):
+        return _format_concrete_expression_to_single_line(
+            expression, expression_context, context
+        )
+    if _should_inline_eq_dict_value(expression, expression_context, context):
+        new_expression_context = _append_to_expression_context(
+            f"{expression_to_str(expression.children[0])} = ",
+            expression_context,
+        )
+        return _format_standalone_expression(
+            expression.children[1], new_expression_context, context
+        )
     key_expression_context = ExpressionContext(
         expression_context.prefix_string,
         expression_context.prefix_line,
@@ -375,6 +387,18 @@ def _format_call_expression_to_multiple_lines(
                 ),
             )
         ]
+    if _should_inline_single_container_argument(expression):
+        new_expression_context = ExpressionContext(
+            "{}{}(".format(expression_context.prefix_string, callee),
+            get_line(callee_node),
+            "){}".format(expression_context.suffix_string),
+            get_end_line(expression),
+        )
+        return _format_standalone_expression(
+            expression.children[1],
+            new_expression_context,
+            context,
+        )
     new_expression_context = ExpressionContext(
         "{}{}(".format(expression_context.prefix_string, callee),
         get_line(callee_node),
@@ -726,21 +750,95 @@ def _format_dot_chain_to_multiple_lines(
         return _format_dot_chain_to_multiple_lines_bottom_up(
             dot_chain, expression_context, context
         )
+    lines_formatted_bottom_up = _format_dot_chain_to_multiple_lines_bottom_up(
+        dot_chain, expression_context, context
+    )
+    if (
+        _dot_chain_ends_with_actual_getattr_call(dot_chain)
+        and not _dot_chain_prefix_forces_multiple_lines(dot_chain, context)
+        and _line_fits_in_width(lines_formatted_bottom_up[0][1], context.max_line_length)
+    ):
+        return lines_formatted_bottom_up
     if is_expression_forcing_multiple_lines(dot_chain, context.standalone_comments):
         return _format_operator_chain_based_expression_to_multiple_lines(
             dot_chain, expression_context, context
         )
-    lines_formatted_bottom_up = _format_dot_chain_to_multiple_lines_bottom_up(
-        dot_chain, expression_context, context
-    )
-    if all(
-        len(line.replace("\t", " " * TAB_INDENT_SIZE)) <= context.max_line_length
-        for line_number, line in lines_formatted_bottom_up
-    ):
+    if _all_lines_fit_in_width(lines_formatted_bottom_up, context.max_line_length):
         return lines_formatted_bottom_up
     return _format_operator_chain_based_expression_to_multiple_lines(
         dot_chain, expression_context, context
     )
+
+
+def _dot_chain_ends_with_actual_getattr_call(dot_chain: Tree) -> bool:
+    last_chain_element = dot_chain.children[-1]
+    return (
+        isinstance(last_chain_element, Tree)
+        and last_chain_element.data == "actual_getattr_call"
+    )
+
+
+def _dot_chain_prefix_forces_multiple_lines(dot_chain: Tree, context: Context) -> bool:
+    return any(
+        isinstance(child, Tree)
+        and is_expression_forcing_multiple_lines(child, context.standalone_comments)
+        for child in dot_chain.children[:-1]
+    )
+
+
+def _should_inline_eq_dict_value(
+    expression: Tree, expression_context: ExpressionContext, context: Context
+) -> bool:
+    if expression.data != "eq_dict_element":
+        return False
+    key = expression.children[0]
+    if is_expression_forcing_multiple_lines(key, context.standalone_comments):
+        return False
+    value = remove_outer_parentheses(expression.children[1])
+    if not _is_inline_container_value(value):
+        return False
+    opening_delimiter = {"array": "[", "dict": "{"}[value.data]
+    candidate_line = "{}{}{} = {}".format(
+        context.indent_string,
+        expression_context.prefix_string,
+        expression_to_str(key),
+        opening_delimiter,
+    )
+    return len(candidate_line.replace("\t", " " * TAB_INDENT_SIZE)) <= context.max_line_length
+
+
+def _should_keep_scalar_eq_dict_pair_on_single_line(
+    expression: Tree, context: Context
+) -> bool:
+    if expression.data != "eq_dict_element":
+        return False
+    if is_expression_forcing_multiple_lines(expression.children[0], context.standalone_comments):
+        return False
+    value = remove_outer_parentheses(expression.children[1])
+    return isinstance(value, Token) or (
+        isinstance(value, Tree) and value.data in ["string", "rstring"]
+    )
+
+
+def _should_inline_single_container_argument(expression: Tree) -> bool:
+    if len(expression.children) != 2:
+        return False
+    argument = remove_outer_parentheses(expression.children[1])
+    return _is_inline_container_value(argument)
+
+
+def _is_inline_container_value(expression: Node) -> bool:
+    return isinstance(expression, Tree) and expression.data in ["array", "dict"]
+
+
+def _all_lines_fit_in_width(
+    formatted_lines: FormattedLines, max_line_length: int
+) -> bool:
+    return all(_line_fits_in_width(line, max_line_length) for _, line in formatted_lines)
+
+
+def _line_fits_in_width(line: str, max_line_length: int) -> bool:
+    return len(line.replace("\t", " " * TAB_INDENT_SIZE)) <= max_line_length
 
 
 def _format_dot_chain_to_multiple_lines_bottom_up(

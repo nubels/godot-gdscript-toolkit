@@ -17,6 +17,7 @@ class X:
 			c = 1,
 		}
 		var w = {
-			xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx =
-			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+			xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx = [
+				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+			],
 		}

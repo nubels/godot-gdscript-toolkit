@@ -20,7 +20,7 @@ func foo():
 	var x = [
 		1,
 		2  # bbb
-		# ccc
+	# ccc
 	]
 	# ddd
 	var y = [
@@ -29,7 +29,7 @@ func foo():
 		2,
 		3,
 		[
-			# yyy1
+		# yyy1
 			1,
 		],
 		# yyy2
@@ -44,11 +44,11 @@ func foo():
 
 
 func bar(
-	# qq4
+		# qq4
 	a,
-	# ww4
+		# ww4
 	b
-	# ee4
+		# ee4
 ):
 	# rr4
 	pass

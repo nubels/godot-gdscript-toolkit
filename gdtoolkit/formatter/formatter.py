@@ -1,4 +1,3 @@
-import re
 from typing import List, Optional
 
 from lark import Tree
@@ -66,9 +65,7 @@ def format_code(
     )
     formatted_lines.append((None, ""))
     formatted_lines = _add_inline_comments(formatted_lines, context.inline_comments)
-    formatted_lines = _add_standalone_comments(
-        formatted_lines, context.standalone_comments, context.indent_regex
-    )
+    formatted_lines = _add_standalone_comments(formatted_lines, context.standalone_comments)
     return "\n".join([line for _, line in formatted_lines])
 
 
@@ -99,7 +96,6 @@ def _add_inline_comments(
 def _add_standalone_comments(
     formatted_lines: FormattedLines,
     standalone_comments: List[Optional[str]],
-    indent_regex: re.Pattern,
 ) -> FormattedLines:
     remaining_comments = standalone_comments[:]
     postprocessed_lines = []  # type: FormattedLines
@@ -118,20 +114,11 @@ def _add_standalone_comments(
             continue
         comments = remaining_comments[line_no:last_experssion_line_no]
         remaining_comments = remaining_comments[:line_no]
-        indent = _get_greater_indent(line, postprocessed_lines[-1][1], indent_regex)
         postprocessed_lines += [
-            (None, f"{indent}{comment}")
+            (None, comment)
             for comment in reversed(comments)
             if comment is not None
         ]
         postprocessed_lines.append((line_no, line))
 
     return list(reversed(postprocessed_lines))
-
-
-def _get_greater_indent(line_a: str, line_b: str, indent_regex: re.Pattern):
-    line_a_match = indent_regex.search(line_a)
-    line_b_match = indent_regex.search(line_b)
-    line_a_indent = "" if line_a_match is None else line_a_match.group(0)
-    line_b_indent = "" if line_b_match is None else line_b_match.group(0)
-    return line_a_indent if len(line_a_indent) > len(line_b_indent) else line_b_indent
