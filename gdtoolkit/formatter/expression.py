@@ -387,7 +387,8 @@ def _format_call_expression_to_multiple_lines(
                 ),
             )
         ]
-    if _should_inline_single_container_argument(expression):
+    single_container_argument = _get_single_container_argument(expression)
+    if single_container_argument is not None:
         new_expression_context = ExpressionContext(
             "{}{}(".format(expression_context.prefix_string, callee),
             get_line(callee_node),
@@ -395,7 +396,7 @@ def _format_call_expression_to_multiple_lines(
             get_end_line(expression),
         )
         return _format_standalone_expression(
-            expression.children[1],
+            single_container_argument,
             new_expression_context,
             context,
         )
@@ -819,12 +820,12 @@ def _should_keep_scalar_eq_dict_pair_on_single_line(
         isinstance(value, Tree) and value.data in ["string", "rstring"]
     )
 
-
-def _should_inline_single_container_argument(expression: Tree) -> bool:
-    if len(expression.children) != 2:
-        return False
-    argument = remove_outer_parentheses(expression.children[1])
-    return _is_inline_container_value(argument)
+def _get_single_container_argument(expression: Tree) -> Optional[Node]:
+    arguments = [child for child in expression.children[1:] if not is_any_comma(child)]
+    if len(arguments) != 1:
+        return None
+    argument = arguments[0]
+    return argument if _is_inline_container_value(remove_outer_parentheses(argument)) else None
 
 
 def _is_inline_container_value(expression: Node) -> bool:

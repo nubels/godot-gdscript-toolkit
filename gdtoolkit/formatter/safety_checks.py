@@ -16,6 +16,14 @@ from .exceptions import (
 
 # pylint: disable-next=too-many-public-methods
 class LoosenTreeTransformer(Transformer):
+    @staticmethod
+    def _without_trailing_commas(args):
+        return [
+            arg
+            for arg in args
+            if not isinstance(arg, Tree) or arg.data != "trailing_comma"
+        ]
+
     def par_expr(self, args):
         return args[0] if len(args) > 0 else args
 
@@ -80,6 +88,15 @@ class LoosenTreeTransformer(Transformer):
         if len(args) > 1 and len(args[1].children) == 0:
             return Tree("signal_stmt", args[:-1])
         return Tree("signal_stmt", args)
+
+    def standalone_call(self, args):
+        return Tree("standalone_call", self._without_trailing_commas(args))
+
+    def getattr_call(self, args):
+        return Tree("getattr_call", self._without_trailing_commas(args))
+
+    def actual_getattr_call(self, args):
+        return Tree("actual_getattr_call", self._without_trailing_commas(args))
 
     def start(self, args):
         return Tree(
